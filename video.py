@@ -5,6 +5,15 @@ from matplotlib import pyplot as plt
 from numba import jit
 from collections import deque
 
+def timer_func(func):
+    def wrap_func(*args, **kwargs):
+        t1 = time.time()
+        result = func(*args, **kwargs)
+        t2 = time.time()
+        print(f'Function {func.__name__!r} executed in {(t2-t1):.4f}s')
+        return result
+    return wrap_func
+
 @jit(parallel = True)
 def pythagoras(horizontal,vertical,h,w):
     h_m = (horizontal[:,:,0] + horizontal[:,:,1] + horizontal[:,:,2] ) / 3
@@ -14,6 +23,7 @@ def pythagoras(horizontal,vertical,h,w):
     diagonal = np.sqrt(np.square(h_m)+np.square(v_m))
     return diagonal
 
+timed_pythagoras = timer_func(pythagoras)
 
 height = 1080
 width = 1920
@@ -21,18 +31,12 @@ width = 1920
 a = np.random.rand(height,width,3)*255
 b = np.random.rand(height,width,3)*255
 
-t0 = time.time()
-pythagoras(a,b,height,width)
-t1 = time.time()
-print(t1-t0)
+timed_pythagoras(a,b,height,width)
 
 vid = cv2.VideoCapture(0)
 vid.set(cv2.CAP_PROP_FRAME_WIDTH,width)
 vid.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
 length = 540
-
-t0 = time.time()
-frame_count = 0
 
 running = True
 foundSample = False
@@ -57,7 +61,7 @@ while running:
     cv2.imshow('None approximation', image_copy)
 
 
-    maxArea = 32400
+    maxArea = (height/2)**4
     foundQuad = False
     for contour in contours:
         poly = cv2.approxPolyDP(contour,0.01*cv2.arcLength(contour,True),True)
@@ -109,14 +113,9 @@ while running:
         gradientSquare = cv2.warpPerspective(gradient,perspectiveMatrix,(length,length))
         previousSquare = square
 
-        print(gradientSquare.shape)
-
         cv2.imshow('Gradient Square',gradientSquare)
         cv2.imshow('Square',square)
 
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         running = False
-
-
-t1 = time.time()
